@@ -11,7 +11,6 @@ import cn.dm.vo.ManagementOrderVo;
 import cn.dm.vo.QueryOrderVo;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
-import org.hibernate.validator.internal.xml.BeanType;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -55,12 +54,12 @@ public class OrderServiceImpl implements OrderService {
             //查询每个坐位对应的级别
             String[] seats = seatArray[i].split("_");
             dmSchedulerSeat = restDmSchedulerSeatClient.getDmSchedulerSeatByOrder(orderVo.getSchedulerId(), Integer.parseInt(seats[0]), Integer.parseInt(seats[1]));
-            //如果当前作为已经被锁定（状态为2）或者已被购买（状态为3），则购买选座异常失败
-            if (dmSchedulerSeat.getStatus() == 2 || dmSchedulerSeat.getStatus() == 3) {
+            //如果当前作为已经被锁定待支付（状态为0）或者已被购买（状态为1），则购买选座异常失败
+            if (dmSchedulerSeat.getStatus() == Constants.OrderStatus.TOPAY || dmSchedulerSeat.getStatus() == Constants.OrderStatus.SUCCESS) {
                 throw new BaseException(OrderErrorCode.ORDER_SEAT_LOCKED);
             }
             //更新作为状态为锁定待付款
-            dmSchedulerSeat.setStatus(2);
+            dmSchedulerSeat.setStatus(Constants.SchedulerSeatStatus.SchedulerSeat_PAYSUCCESS);
             //更新下单用户
             dmSchedulerSeat.setUserId(orderVo.getUserId());
             dmSchedulerSeat.setUpdatedTime(new Date());
@@ -77,14 +76,14 @@ public class OrderServiceImpl implements OrderService {
         dmOrder.setOrderNo(orderNo);
         BeanUtils.copyProperties(orderVo, dmOrder);
         dmOrder.setItemName(dmItem.getItemName());
-        dmOrder.setOrderType(0);//未支付
+        dmOrder.setOrderType(Constants.OrderStatus.TOPAY);//未支付
         dmOrder.setTotalCount(seatArray.length);
-        if (orderVo.getIsNeedInsurance() == 1) {
+        if (orderVo.getIsNeedInsurance() == Constants.OrderStatus.ISNEEDINSURANCE_YES) {
             //需要保险，总金额增加保险金额
-            totalAmount += 20;
+            totalAmount += Constants.OrderStatus.NEEDINSURANCE_MONEY;
         }
         dmOrder.setTotalAmount(totalAmount);
-        dmOrder.setInsuranceAmount(20.0);
+        dmOrder.setInsuranceAmount(Constants.OrderStatus.NEEDINSURANCE_MONEY);
         dmOrder.setCreatedTime(new Date());
         Integer orderId = restDmOrderClient.qdtxAddDmOrder(dmOrder);
         //添加下单关联用户
