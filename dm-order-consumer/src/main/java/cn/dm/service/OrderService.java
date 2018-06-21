@@ -44,8 +44,9 @@ public interface OrderService {
      * @param orderType
      * @param orderTime
      * @param keyword
+     * @param token
      * @return
      * @throws Exception
      */
-    public Dto<List<ManagementOrderVo>> queryOrderList(Integer orderType, Integer orderTime, String keyword) throws Exception;
+    public Dto<List<ManagementOrderVo>> queryOrderList(Integer orderType, Integer orderTime, String keyword, String token) throws Exception;
 }

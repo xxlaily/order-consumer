@@ -6,6 +6,7 @@ import cn.dm.exception.OrderErrorCode;
 import cn.dm.pojo.*;
 import cn.dm.service.OrderService;
 import cn.dm.vo.CreateOrderVo;
+import cn.dm.vo.DmUserVO;
 import cn.dm.vo.ManagementOrderVo;
 import cn.dm.vo.QueryOrderVo;
 import com.alibaba.fastjson.JSON;
@@ -14,7 +15,6 @@ import org.hibernate.validator.internal.xml.BeanType;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 
@@ -39,6 +39,9 @@ public class OrderServiceImpl implements OrderService {
 
     @Autowired
     private RestDmOrderLinkUserClient restDmOrderLinkUserClient;
+
+    @Autowired
+    private RedisUtils redisUtils;
 
     @Override
     public Dto createOrder(CreateOrderVo orderVo) throws Exception {
@@ -142,10 +145,19 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    public Dto<List<ManagementOrderVo>> queryOrderList(Integer orderType, Integer orderTime, String keyword) throws Exception {
+    public Dto<List<ManagementOrderVo>> queryOrderList(Integer orderType, Integer orderTime, String keyword,String token) throws Exception {
+        //查询当前用户
+        String tokenUser = null;
+        if ((tokenUser = (String) redisUtils.get(token)) == null) {
+            throw new BaseException(OrderErrorCode.COMMON_NO_LOGIN);
+        }
+        DmUserVO dmUserVO =  JSON.parseObject(tokenUser, DmUserVO.class);
         //查询对应类型/时间/关键字的订单列表
         Map<String, Object> orderMap = new HashMap<String, Object>();
-        orderMap.put("orderType", orderType);
+        orderMap.put("userId",dmUserVO.getUserId());
+        if (orderType != 3) {
+            orderMap.put("orderType", orderType);
+        }
         orderMap.put("orderTime", orderTime);
         if (EmptyUtils.isNotEmpty(keyword)) {
             orderMap.put("orderNo", "%" + keyword + "%");

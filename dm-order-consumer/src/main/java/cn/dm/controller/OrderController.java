@@ -1,6 +1,7 @@
 package cn.dm.controller;
 
 import cn.dm.common.Dto;
+import cn.dm.common.DtoUtil;
 import cn.dm.service.OrderService;
 import cn.dm.vo.CreateOrderVo;
 import cn.dm.vo.ManagementOrderVo;
@@ -16,7 +17,7 @@ import java.util.Map;
  * 订单页Controller
  */
 @RestController
-@RequestMapping(value = "/api/")
+@RequestMapping(value = "/api/v/")
 public class OrderController {
 
     @Autowired
@@ -73,8 +74,8 @@ public class OrderController {
      */
     @RequestMapping(value = "/queryOrderList", method = RequestMethod.POST)
     @ResponseBody
-    public Dto<List<ManagementOrderVo>> queryOrderList(@RequestBody Map<String, Object> param) throws Exception {
-        return orderService.queryOrderList((Integer) param.get("orderType"), (Integer) param.get("orderTime"), (String) param.get("keyword"));
+    public Dto<List<ManagementOrderVo>> queryOrderList(@RequestBody Map<String, Object> param, @RequestHeader String token) throws Exception {
+        return orderService.queryOrderList((Integer) param.get("orderType"), (Integer) param.get("orderTime"), (String) param.get("keyword"), token);
     }
 
 }
