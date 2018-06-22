@@ -50,27 +50,30 @@ public class OrderServiceImpl implements OrderService {
         checkDataIsNull(dmItem);
         DmSchedulerSeat dmSchedulerSeat = null;
         double totalAmount = 0;
+        //生成订单号
+        String orderNo = OrderUtils.createOrderNo();
         for (int i = 0; i < seatArray.length; i++) {
             //查询每个坐位对应的级别
             String[] seats = seatArray[i].split("_");
             dmSchedulerSeat = restDmSchedulerSeatClient.getDmSchedulerSeatByOrder(orderVo.getSchedulerId(), Integer.parseInt(seats[0]), Integer.parseInt(seats[1]));
             //如果当前作为已经被锁定待支付（状态为0）或者已被购买（状态为1），则购买选座异常失败
-            if (dmSchedulerSeat.getStatus() == Constants.OrderStatus.TOPAY || dmSchedulerSeat.getStatus() == Constants.OrderStatus.SUCCESS) {
+            if (dmSchedulerSeat.getStatus() == Constants.SchedulerSeatStatus.SchedulerSeat_TOPAY || dmSchedulerSeat.getStatus() == Constants.SchedulerSeatStatus.SchedulerSeat_PAYSUCCESS) {
                 throw new BaseException(OrderErrorCode.ORDER_SEAT_LOCKED);
             }
             //更新作为状态为锁定待付款
-            dmSchedulerSeat.setStatus(Constants.SchedulerSeatStatus.SchedulerSeat_PAYSUCCESS);
+            dmSchedulerSeat.setStatus(Constants.SchedulerSeatStatus.SchedulerSeat_TOPAY);
             //更新下单用户
             dmSchedulerSeat.setUserId(orderVo.getUserId());
             dmSchedulerSeat.setUpdatedTime(new Date());
+            //更新订单编号
+            dmSchedulerSeat.setOrderNo(orderNo);
             //更新数据库
             restDmSchedulerSeatClient.qdtxModifyDmSchedulerSeat(dmSchedulerSeat);
             //开始计算总价格
             DmSchedulerSeatPrice dmSchedulerSeatPrice = restDmSchedulerSeatPriceClient.getDmSchedulerSeatPriceBySchedulerIdAndArea(dmSchedulerSeat.getAreaLevel(), dmSchedulerSeat.getScheduleId());
             totalAmount += dmSchedulerSeatPrice.getPrice();
         }
-        //生成订单号
-        String orderNo = OrderUtils.createOrderNo();
+
         //生成订单数据
         DmOrder dmOrder = new DmOrder();
         dmOrder.setOrderNo(orderNo);
@@ -190,7 +193,7 @@ public class OrderServiceImpl implements OrderService {
 
 
     /**
-     * 根据userId和scheduleId获取座位信息
+     * 根据userId，scheduleId，orderNo获取座位信息
      *
      * @param dmOrder
      * @return
@@ -200,6 +203,7 @@ public class OrderServiceImpl implements OrderService {
         Map<String, Object> seatMap = new HashMap<String, Object>();
         seatMap.put("userId", dmOrder.getUserId());
         seatMap.put("scheduleId", dmOrder.getSchedulerId());
+        seatMap.put("orderNo",dmOrder.getOrderNo());
         return restDmSchedulerSeatClient.getDmSchedulerSeatListByMap(seatMap);
     }
 
