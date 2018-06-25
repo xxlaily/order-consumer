@@ -120,8 +120,8 @@ public class OrderServiceImpl implements OrderService {
         //根据订单号获取订单信息
         DmOrder dmOrder = getOrderByOrderNo(orderNo);
         //根据userId和scheduleId获取座位信息
-        List<DmSchedulerSeat> dmSchedulerSeatList = getDmSchedulerSeatByUserIdAndScheduleId(dmOrder);
-        checkDataIsNull(dmSchedulerSeatList);
+        List<DmOrderLinkUser> dmOrderLinkUserList = getOrderLinkUserListByOrderId(dmOrder);
+        checkDataIsNull(dmOrderLinkUserList);
         //根据itemId获取商品名称
         DmItem dmItem = restDmItemClient.getDmItemById(dmOrder.getItemId());
         checkDataIsNull(dmItem);
@@ -132,8 +132,8 @@ public class OrderServiceImpl implements OrderService {
         BeanUtils.copyProperties(dmOrder, queryOrderVo);
         //拼接座位信息
         StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < dmSchedulerSeatList.size(); i++) {
-            sb.append(dmSchedulerSeatList.get(i).getX() + "_" + dmSchedulerSeatList.get(i).getY() + ",");
+        for (int i = 0; i < dmOrderLinkUserList.size(); i++) {
+            sb.append(dmOrderLinkUserList.get(i).getX() + "_" + dmOrderLinkUserList.get(i).getY() + ",");
         }
         //去掉最有一个多余的分个号
         queryOrderVo.setSeatName(sb.substring(0, sb.length() - 1));
@@ -177,7 +177,6 @@ public class OrderServiceImpl implements OrderService {
             BeanUtils.copyProperties(dmOrder, managementOrderVo);
             managementOrderVo.setNum(dmOrder.getTotalCount());
             //拼接订单中的座位信息,根据订单联系人来判断座位，一个座位对应一个联系人
-//            List<DmSchedulerSeat> dmSchedulerSeatList = getDmSchedulerSeatByUserIdAndScheduleId(dmOrder);
            List<DmOrderLinkUser> dmOrderLinkUserList = getOrderLinkUserListByOrderId(dmOrder);
             checkDataIsNull(dmOrderLinkUserList);
             //拼接商品单价信息，格式为：x1_y1_price,x2_y2_price
