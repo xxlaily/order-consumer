@@ -91,7 +91,7 @@ public class OrderServiceImpl implements OrderService {
         dmOrder.setTotalAmount(totalAmount);
         dmOrder.setInsuranceAmount(Constants.OrderStatus.NEEDINSURANCE_MONEY);
         dmOrder.setCreatedTime(new Date());
-        Integer orderId = restDmOrderClient.qdtxAddDmOrder(dmOrder);
+        Long orderId = restDmOrderClient.qdtxAddDmOrder(dmOrder);
         //添加下单关联用户
         String[] linkIds = orderVo.getLinkIds().split(",");
         //把所有的关联用户插入数据库中
@@ -100,7 +100,7 @@ public class OrderServiceImpl implements OrderService {
             DmLinkUser dmLinkUser = restDmLinkUserClient.getDmLinkUserById(Long.parseLong(linkIds[i]));
             checkDataIsNull(dmLinkUser);
             DmOrderLinkUser dmOrderLinkUser = new DmOrderLinkUser();
-            dmOrderLinkUser.setOrderId((long) orderId);
+            dmOrderLinkUser.setOrderId(orderId);
             dmOrderLinkUser.setLinkUserId(dmLinkUser.getId());
             dmOrderLinkUser.setLinkUserName(dmLinkUser.getName());
             dmOrderLinkUser.setX(Integer.parseInt(seatArray[i].split("_")[0]));
@@ -177,7 +177,7 @@ public class OrderServiceImpl implements OrderService {
             BeanUtils.copyProperties(dmOrder, managementOrderVo);
             managementOrderVo.setNum(dmOrder.getTotalCount());
             //拼接订单中的座位信息,根据订单联系人来判断座位，一个座位对应一个联系人
-           List<DmOrderLinkUser> dmOrderLinkUserList = getOrderLinkUserListByOrderId(dmOrder);
+            List<DmOrderLinkUser> dmOrderLinkUserList = getOrderLinkUserListByOrderId(dmOrder);
             checkDataIsNull(dmOrderLinkUserList);
             //拼接商品单价信息，格式为：x1_y1_price,x2_y2_price
             StringBuilder sb = new StringBuilder();
