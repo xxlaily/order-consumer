@@ -52,6 +52,8 @@ public class OrderServiceImpl implements OrderService {
         double totalAmount = 0;
         //生成订单号
         String orderNo = OrderUtils.createOrderNo();
+        //座位价格集合
+        Double[] doublesPrice = new Double[seatArray.length];
         for (int i = 0; i < seatArray.length; i++) {
             //查询每个坐位对应的级别
             String[] seats = seatArray[i].split("_");
@@ -71,6 +73,8 @@ public class OrderServiceImpl implements OrderService {
             restDmSchedulerSeatClient.qdtxModifyDmSchedulerSeat(dmSchedulerSeat);
             //开始计算总价格
             DmSchedulerSeatPrice dmSchedulerSeatPrice = restDmSchedulerSeatPriceClient.getDmSchedulerSeatPriceBySchedulerIdAndArea(dmSchedulerSeat.getAreaLevel(), dmSchedulerSeat.getScheduleId());
+            //保存座位价格，后续在完善订单明细表中使用
+            doublesPrice[i] = dmSchedulerSeatPrice.getPrice();
             totalAmount += dmSchedulerSeatPrice.getPrice();
         }
 
@@ -80,7 +84,6 @@ public class OrderServiceImpl implements OrderService {
         BeanUtils.copyProperties(orderVo, dmOrder);
         dmOrder.setItemName(dmItem.getItemName());
         dmOrder.setOrderType(Constants.OrderStatus.TOPAY);//未支付
-        dmOrder.setTotalCount(seatArray.length);
         if (orderVo.getIsNeedInsurance() == Constants.OrderStatus.ISNEEDINSURANCE_YES) {
             //需要保险，总金额增加保险金额
             totalAmount += Constants.OrderStatus.NEEDINSURANCE_MONEY;
@@ -103,6 +106,7 @@ public class OrderServiceImpl implements OrderService {
             dmOrderLinkUser.setX(Integer.parseInt(seatArray[i].split("_")[0]));
             dmOrderLinkUser.setY(Integer.parseInt(seatArray[i].split("_")[1]));
             dmOrderLinkUser.setCreatedTime(new Date());
+            dmOrderLinkUser.setPrice(doublesPrice[i]);
             //插入数据
             restDmOrderLinkUserClient.qdtxAddDmOrderLinkUser(dmOrderLinkUser);
         }
@@ -147,16 +151,16 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    public Dto<List<ManagementOrderVo>> queryOrderList(Integer orderType, Integer orderTime, String keyword,String token) throws Exception {
+    public Dto<List<ManagementOrderVo>> queryOrderList(Integer orderType, Integer orderTime, String keyword, String token) throws Exception {
         //查询当前用户
         String tokenUser = null;
         if ((tokenUser = (String) redisUtils.get(token)) == null) {
             throw new BaseException(OrderErrorCode.COMMON_NO_LOGIN);
         }
-        DmUserVO dmUserVO =  JSON.parseObject(tokenUser, DmUserVO.class);
+        DmUserVO dmUserVO = JSON.parseObject(tokenUser, DmUserVO.class);
         //查询对应类型/时间/关键字的订单列表
         Map<String, Object> orderMap = new HashMap<String, Object>();
-        orderMap.put("userId",dmUserVO.getUserId());
+        orderMap.put("userId", dmUserVO.getUserId());
         if (orderType != 3) {
             orderMap.put("orderType", orderType);
         }
@@ -168,19 +172,19 @@ public class OrderServiceImpl implements OrderService {
         List<DmOrder> dmOrderList = restDmOrderClient.getDmOrderListByOrderNoOrDate(orderMap);
         List<ManagementOrderVo> managementOrderVoList = new ArrayList<ManagementOrderVo>();
         for (DmOrder dmOrder : dmOrderList) {
-            //符合要求,开始组装返回数据
+            //开始组装返回数据
             ManagementOrderVo managementOrderVo = new ManagementOrderVo();
             BeanUtils.copyProperties(dmOrder, managementOrderVo);
             managementOrderVo.setNum(dmOrder.getTotalCount());
-            //拼接订单中的座位信息
-            List<DmSchedulerSeat> dmSchedulerSeatList = getDmSchedulerSeatByUserIdAndScheduleId(dmOrder);
-            checkDataIsNull(dmSchedulerSeatList);
+            //拼接订单中的座位信息,根据订单联系人来判断座位，一个座位对应一个联系人
+//            List<DmSchedulerSeat> dmSchedulerSeatList = getDmSchedulerSeatByUserIdAndScheduleId(dmOrder);
+           List<DmOrderLinkUser> dmOrderLinkUserList = getOrderLinkUserListByOrderId(dmOrder);
+            checkDataIsNull(dmOrderLinkUserList);
             //拼接商品单价信息，格式为：x1_y1_price,x2_y2_price
             StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < dmSchedulerSeatList.size(); i++) {
-                DmSchedulerSeat dmSchedulerSeat = dmSchedulerSeatList.get(i);
-                DmSchedulerSeatPrice dmSchedulerSeatPrice = restDmSchedulerSeatPriceClient.getDmSchedulerSeatPriceBySchedulerIdAndArea(dmSchedulerSeat.getAreaLevel(), dmSchedulerSeat.getScheduleId());
-                sb.append(dmSchedulerSeat.getX() + "_" + dmSchedulerSeat.getY() + "_" + dmSchedulerSeatPrice.getPrice() + ",");
+            for (int i = 0; i < dmOrderLinkUserList.size(); i++) {
+                DmOrderLinkUser dmOrderLinkUser = dmOrderLinkUserList.get(i);
+                sb.append(dmOrderLinkUser.getX() + "_" + dmOrderLinkUser.getY() + "_" + dmOrderLinkUser.getPrice() + ",");
             }
             //去掉多余的分隔符
             managementOrderVo.setUnitPrice(sb.substring(0, sb.length() - 1));
@@ -193,18 +197,16 @@ public class OrderServiceImpl implements OrderService {
 
 
     /**
-     * 根据userId，scheduleId，orderNo获取座位信息
+     * 根据orderId获取座位信息
      *
      * @param dmOrder
      * @return
      * @throws Exception
      */
-    public List<DmSchedulerSeat> getDmSchedulerSeatByUserIdAndScheduleId(DmOrder dmOrder) throws Exception {
+    public List<DmOrderLinkUser> getOrderLinkUserListByOrderId(DmOrder dmOrder) throws Exception {
         Map<String, Object> seatMap = new HashMap<String, Object>();
-        seatMap.put("userId", dmOrder.getUserId());
-        seatMap.put("scheduleId", dmOrder.getSchedulerId());
-        seatMap.put("orderNo",dmOrder.getOrderNo());
-        return restDmSchedulerSeatClient.getDmSchedulerSeatListByMap(seatMap);
+        seatMap.put("orderId", dmOrder.getId());
+        return restDmOrderLinkUserClient.getDmOrderLinkUserListByMap(seatMap);
     }
 
     /**
