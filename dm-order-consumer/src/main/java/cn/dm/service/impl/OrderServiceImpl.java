@@ -84,6 +84,7 @@ public class OrderServiceImpl implements OrderService {
         BeanUtils.copyProperties(orderVo, dmOrder);
         dmOrder.setItemName(dmItem.getItemName());
         dmOrder.setOrderType(Constants.OrderStatus.TOPAY);//未支付
+        dmOrder.setTotalCount(seatArray.length);
         if (orderVo.getIsNeedInsurance() == Constants.OrderStatus.ISNEEDINSURANCE_YES) {
             //需要保险，总金额增加保险金额
             totalAmount += Constants.OrderStatus.NEEDINSURANCE_MONEY;
