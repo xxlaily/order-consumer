@@ -5,12 +5,12 @@ import cn.dm.common.*;
 import cn.dm.exception.OrderErrorCode;
 import cn.dm.pojo.*;
 import cn.dm.service.OrderService;
-import cn.dm.vo.CreateOrderVo;
-import cn.dm.vo.DmUserVO;
-import cn.dm.vo.ManagementOrderVo;
-import cn.dm.vo.QueryOrderVo;
+import cn.dm.vo.*;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -41,6 +41,8 @@ public class OrderServiceImpl implements OrderService {
 
     @Autowired
     private RedisUtils redisUtils;
+
+    private static final Logger logger = LoggerFactory.getLogger(OrderServiceImpl.class);
 
     @Override
     public Dto createOrder(CreateOrderVo orderVo) throws Exception {
@@ -233,5 +235,25 @@ public class OrderServiceImpl implements OrderService {
         if (EmptyUtils.isEmpty(object)) {
             throw new BaseException(OrderErrorCode.ORDER_NO_DATA);
         }
+    }
+
+    /**
+     * 更新订单状态（支付）
+     * @param dmItemMessageVo
+     * @throws Exception
+     */
+    @RabbitListener(queues = Constants.RabbitQueueName.TO_UPDATED_ORDER_QUEUE)
+    public void updateOrderType(DmItemMessageVo dmItemMessageVo) throws Exception {
+        logger.info(">>>>>>>>>>>>>>>>>更新订单状态队列收到消息"+ dmItemMessageVo.getOrderNo());
+        //找到对应订单
+        DmOrder dmOrder = restDmOrderClient.getDmOrderByOrderNo(dmItemMessageVo.getOrderNo());
+        //更新对应的订单状态为支付成功
+        dmOrder.setOrderType(Constants.OrderStatus.SUCCESS);
+        //更新支付类型
+        dmOrder.setPayType("1");
+        //更新编号
+        dmOrder.setWxTradeNo("微信支付编号");
+        //更新数据库
+        restDmOrderClient.qdtxModifyDmOrder(dmOrder);
     }
 }
