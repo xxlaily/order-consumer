@@ -32,7 +32,7 @@ spring:
 eureka:
   client:
     service-url:
-      defaultZone: http://root:123456@192.168.9.151:9006/eureka/
+      defaultZone: http://root:123456@192.168.9.151:7776/eureka/
 #      defaultZone: http://root:123456@discovery:9000/eureka/
 #      defaultZone: http://root:123456@localhost:9000/eureka/
 # shop-goods-provider.ribbon.NFLoadBalancerRuleClassName: com.netflix.loadbalancer.RoundRobinRule
