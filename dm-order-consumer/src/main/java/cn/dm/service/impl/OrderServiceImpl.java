@@ -365,4 +365,35 @@ public class OrderServiceImpl implements OrderService {
         restDmOrderLinkUserClient.deleteDmOrderLinkUserByOrderId(orderId);
         logger.info("[DM-ITEM-CONSUMER][" + this.getClass().getName() + "][delOrderLinkUserMsg]" + "重置订单联系人队列，已经删除编号为" + orderId + "的订单");
     }
+
+    /**
+     * 刷新订单状态，对于未支付的订单，超过两个小时则修改其状态为取消支付
+     *
+     * @throws Exception
+     */
+    @Override
+    public boolean flushCancelOrderType() throws Exception {
+        return restDmOrderClient.flushCancelOrderType();
+    }
+
+    @Override
+    public List<DmOrder> getDmOrderByOrderTypeAndTime() throws Exception {
+        return restDmOrderClient.getDmOrderByOrderTypeAndTime();
+    }
+
+    @Override
+    public boolean updateSchedulerSeatStatus() throws Exception {
+        boolean flag = false;
+        List<DmOrder> dmOrders = this.getDmOrderByOrderTypeAndTime();
+        for (DmOrder dmOrder : dmOrders) {
+            Map schedulerMap = new HashMap();
+            schedulerMap.put("orderNo", dmOrder.getOrderNo());
+            List<DmSchedulerSeat> dmSchedulerSeats = restDmSchedulerSeatClient.getDmSchedulerSeatListByMap(schedulerMap);
+            for (DmSchedulerSeat dmSchedulerSeat : dmSchedulerSeats) {
+                dmSchedulerSeat.setStatus(1);
+                flag = restDmSchedulerSeatClient.qdtxModifyDmSchedulerSeat(dmSchedulerSeat) > 0 ? true : false;
+            }
+        }
+        return flag;
+    }
 }

@@ -1,6 +1,7 @@
 package cn.dm.service;
 
 import cn.dm.common.Dto;
+import cn.dm.pojo.DmOrder;
 import cn.dm.vo.CreateOrderVo;
 import cn.dm.vo.ManagementOrderVo;
 import cn.dm.vo.QueryOrderVo;
@@ -49,4 +50,14 @@ public interface OrderService {
      * @throws Exception
      */
     public Dto<List<ManagementOrderVo>> queryOrderList(Integer orderType, Integer orderTime, String keyword, String token) throws Exception;
+
+    /**
+     * 刷新订单状态，对于未支付的订单，超过两个小时则修改其状态为取消支付
+     * @throws Exception
+     */
+    public boolean flushCancelOrderType() throws Exception;
+
+    public List<DmOrder> getDmOrderByOrderTypeAndTime() throws Exception;
+
+    public boolean updateSchedulerSeatStatus() throws Exception;
 }
