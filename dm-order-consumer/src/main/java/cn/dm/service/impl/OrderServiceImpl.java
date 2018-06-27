@@ -117,6 +117,8 @@ public class OrderServiceImpl implements OrderService {
                 sendResetSeatMsg(dmSchedulerSeat.getScheduleId(), seatArray);
                 //订单创建无法添加关联人，需要删除掉之前的订单
                 sendDelOrderMsg(orderId);
+                //重置订单明细关联人信息
+                sendResetLinkUser(orderId);
                 throw new BaseException(OrderErrorCode.ORDER_NO_DATA);
             }
             DmOrderLinkUser dmOrderLinkUser = new DmOrderLinkUser();
