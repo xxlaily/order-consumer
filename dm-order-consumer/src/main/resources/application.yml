@@ -44,7 +44,7 @@ hystrix:
           thread:
             timeoutInMilliseconds: 10000
 logging:
-  level: debug
+  level: info
 
 feign:
   hystrix:
