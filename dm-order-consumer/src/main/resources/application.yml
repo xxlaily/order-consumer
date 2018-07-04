@@ -29,6 +29,23 @@ spring:
     password: admin
     packages:
       trust-all: true
+  kafka:
+      bootstrap-servers: 192.168.9.151:9091
+      producer:
+        retries: 0
+  #      batch-size: 16384 # 每次批量发送消息的数量
+        buffer-memory: 33554432
+        key-serializer: org.apache.kafka.common.serialization.StringSerializer # 指定消息key和消息体的编解码方式
+        value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      consumer:
+        key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+        value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+        group-id: test-consumer-group
+        auto-commit-interval: 100
+        auto-offset-reset: earliest
+        enable-auto-commit: true
+      listener:
+        poll-timeout: 10000
 eureka:
   client:
     service-url:
