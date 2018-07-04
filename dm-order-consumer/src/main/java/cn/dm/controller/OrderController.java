@@ -1,18 +1,16 @@
 package cn.dm.controller;
 
+import cn.dm.common.Constants;
 import cn.dm.common.Dto;
-import cn.dm.common.DtoUtil;
+import cn.dm.common.LogUtils;
 import cn.dm.service.OrderService;
 import cn.dm.vo.CreateOrderVo;
 import cn.dm.vo.ManagementOrderVo;
 import cn.dm.vo.QueryOrderVo;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.web.bind.annotation.*;
 
-import javax.servlet.http.HttpServletResponse;
 import java.util.List;
 import java.util.Map;
 
@@ -23,7 +21,8 @@ import java.util.Map;
 @RequestMapping(value = "/api/v/")
 public class OrderController {
 
-    private static final Logger logger = LoggerFactory.getLogger(OrderController.class);
+    @Autowired
+    private LogUtils logUtils;
     @Autowired
     private OrderService orderService;
 
@@ -92,7 +91,7 @@ public class OrderController {
             boolean flag = orderService.flushCancelOrderType();
             //修改排期座位表中相应的座位的状态改为有座
             orderService.updateSchedulerSeatStatus();
-            logger.info(flag ? "刷取订单成功" : "刷单失败");
+            logUtils.i(Constants.TOPIC.DEFAULT, flag ? "刷取订单成功" : "刷单失败");
         } catch (Exception e) {
             e.printStackTrace();
         }
