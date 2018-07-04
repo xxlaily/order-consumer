@@ -252,7 +252,7 @@ public class OrderServiceImpl implements OrderService {
         Map<String, Object> resetSeatMap = new HashMap<String, Object>();
         resetSeatMap.put("scheduleId", scheduleId);
         resetSeatMap.put("seats", seatArray);
-        logUtils.i(Constants.TOPIC.DEFAULT, "[sendResetSeatMsg]" + "发送重置座位消息，需要排期为" + scheduleId);
+        logUtils.i(Constants.TOPIC.ORDER_CONSUMER, "[sendResetSeatMsg]" + "发送重置座位消息，需要排期为" + scheduleId);
         rabbitTemplate.convertAndSend(Constants.RabbitQueueName.TOPIC_EXCHANGE, Constants.RabbitQueueName.TO_RESET_SEAT_QUQUE, resetSeatMap);
     }
 
@@ -260,7 +260,7 @@ public class OrderServiceImpl implements OrderService {
      * 发送需要删除订单的消息
      */
     public void sendDelOrderMsg(Long orderId) {
-        logUtils.i(Constants.TOPIC.DEFAULT, "[sendDelOrderMsg]" + "发送重置订单消息，需要重置ID为" + orderId + "的订单");
+        logUtils.i(Constants.TOPIC.ORDER_CONSUMER, "[sendDelOrderMsg]" + "发送重置订单消息，需要重置ID为" + orderId + "的订单");
         rabbitTemplate.convertAndSend(Constants.RabbitQueueName.TOPIC_EXCHANGE, Constants.RabbitQueueName.TO_DEL_ORDER_QUQUE, orderId);
     }
 
@@ -268,7 +268,7 @@ public class OrderServiceImpl implements OrderService {
      * 发送需要重置关联人的消息
      */
     public void sendResetLinkUser(Long orderId) {
-        logUtils.i(Constants.TOPIC.DEFAULT, "[sendResetLinkUser]" + "发送重置联系人消息，需要重置订单ID为" + orderId + "的联系人");
+        logUtils.i(Constants.TOPIC.ORDER_CONSUMER, "[sendResetLinkUser]" + "发送重置联系人消息，需要重置订单ID为" + orderId + "的联系人");
         rabbitTemplate.convertAndSend(Constants.RabbitQueueName.TOPIC_EXCHANGE, Constants.RabbitQueueName.TO_RESET_LINKUSER_QUQUE, orderId);
     }
 
@@ -306,7 +306,7 @@ public class OrderServiceImpl implements OrderService {
      */
     @RabbitListener(queues = Constants.RabbitQueueName.TO_UPDATED_ORDER_QUEUE)
     public void updateOrderType(DmItemMessageVo dmItemMessageVo) throws Exception {
-        logUtils.i(Constants.TOPIC.DEFAULT, "[updateOrderType]" + "更新订单状态队列，准备更新编号为" + dmItemMessageVo.getOrderNo() + "的订单");
+        logUtils.i(Constants.TOPIC.ORDER_CONSUMER, "[updateOrderType]" + "更新订单状态队列，准备更新编号为" + dmItemMessageVo.getOrderNo() + "的订单");
         //找到对应订单
         DmOrder dmOrder = restDmOrderClient.getDmOrderByOrderNo(dmItemMessageVo.getOrderNo());
         //更新对应的订单状态为支付成功
@@ -318,7 +318,7 @@ public class OrderServiceImpl implements OrderService {
         dmOrder.setUpdatedTime(new Date());
         //更新数据库
         restDmOrderClient.qdtxModifyDmOrder(dmOrder);
-        logUtils.i(Constants.TOPIC.DEFAULT, "[updateOrderType]" + "更新订单状态队列，已更新编号为" + dmItemMessageVo.getOrderNo() + "的订单的支付状态为：" + dmItemMessageVo.getStatus() + ",支付编码为:" + dmItemMessageVo.getTradeNo());
+        logUtils.i(Constants.TOPIC.ORDER_CONSUMER, "[updateOrderType]" + "更新订单状态队列，已更新编号为" + dmItemMessageVo.getOrderNo() + "的订单的支付状态为：" + dmItemMessageVo.getStatus() + ",支付编码为:" + dmItemMessageVo.getTradeNo());
     }
 
 
@@ -335,12 +335,12 @@ public class OrderServiceImpl implements OrderService {
             //查询每个坐位对应的级别
             String[] seats = seatArray[i].split("_");
             DmSchedulerSeat dmSchedulerSeat = restDmSchedulerSeatClient.getDmSchedulerSeatByOrder(scheduleId, Integer.parseInt(seats[0]), Integer.parseInt(seats[1]));
-            logUtils.i(Constants.TOPIC.DEFAULT, "[resetSeatMsg]" + "重置座位状态队列，准备重置排期为：" + scheduleId + "的第 " + dmSchedulerSeat.getX() + "排,第 " + dmSchedulerSeat.getY() + "列的位置状态为空闲");
+            logUtils.i(Constants.TOPIC.ORDER_CONSUMER, "[resetSeatMsg]" + "重置座位状态队列，准备重置排期为：" + scheduleId + "的第 " + dmSchedulerSeat.getX() + "排,第 " + dmSchedulerSeat.getY() + "列的位置状态为空闲");
             dmSchedulerSeat.setStatus(Constants.SchedulerSeatStatus.SchedulerSeat_FREE);
             dmSchedulerSeat.setOrderNo(null);
             dmSchedulerSeat.setUserId(null);
             restDmSchedulerSeatClient.qdtxModifyDmSchedulerSeat(dmSchedulerSeat);
-            logUtils.i(Constants.TOPIC.DEFAULT, "[resetSeatMsg]" + "重置座位状态队列，已成功重置排期为：" + scheduleId + "的第 " + dmSchedulerSeat.getX() + "排,第 " + dmSchedulerSeat.getY() + "列的位置状态为空闲");
+            logUtils.i(Constants.TOPIC.ORDER_CONSUMER, "[resetSeatMsg]" + "重置座位状态队列，已成功重置排期为：" + scheduleId + "的第 " + dmSchedulerSeat.getX() + "排,第 " + dmSchedulerSeat.getY() + "列的位置状态为空闲");
         }
     }
 
@@ -352,9 +352,9 @@ public class OrderServiceImpl implements OrderService {
      */
     @RabbitListener(queues = Constants.RabbitQueueName.TO_DEL_ORDER_QUQUE)
     public void delOrderMsg(Long orderId) throws Exception {
-        logUtils.i(Constants.TOPIC.DEFAULT, "[delOrderMsg]" + "重置订单队列，准备删除编号为" + orderId + "的订单");
+        logUtils.i(Constants.TOPIC.ORDER_CONSUMER, "[delOrderMsg]" + "重置订单队列，准备删除编号为" + orderId + "的订单");
         restDmOrderClient.deleteDmOrderById(orderId);
-        logUtils.i(Constants.TOPIC.DEFAULT, "[delOrderMsg]" + "重置订单队列，已经删除编号为" + orderId + "的订单");
+        logUtils.i(Constants.TOPIC.ORDER_CONSUMER, "[delOrderMsg]" + "重置订单队列，已经删除编号为" + orderId + "的订单");
     }
 
     /**
@@ -364,9 +364,9 @@ public class OrderServiceImpl implements OrderService {
      */
     @RabbitListener(queues = Constants.RabbitQueueName.TO_RESET_LINKUSER_QUQUE)
     public void delOrderLinkUserMsg(Long orderId) throws Exception {
-        logUtils.i(Constants.TOPIC.DEFAULT, "[delOrderLinkUserMsg]" + "重置订单联系人队列，准备删除编号为" + orderId + "的订单");
+        logUtils.i(Constants.TOPIC.ORDER_CONSUMER, "[delOrderLinkUserMsg]" + "重置订单联系人队列，准备删除编号为" + orderId + "的订单");
         restDmOrderLinkUserClient.deleteDmOrderLinkUserByOrderId(orderId);
-        logUtils.i(Constants.TOPIC.DEFAULT, "[delOrderLinkUserMsg]" + "重置订单联系人队列，已经删除编号为" + orderId + "的订单");
+        logUtils.i(Constants.TOPIC.ORDER_CONSUMER, "[delOrderLinkUserMsg]" + "重置订单联系人队列，已经删除编号为" + orderId + "的订单");
     }
 
     /**

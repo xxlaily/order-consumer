@@ -91,7 +91,9 @@ public class OrderController {
             boolean flag = orderService.flushCancelOrderType();
             //修改排期座位表中相应的座位的状态改为有座
             orderService.updateSchedulerSeatStatus();
-            logUtils.i(Constants.TOPIC.DEFAULT, flag ? "刷取订单成功" : "刷单失败");
+            if (flag) {
+                logUtils.i(Constants.TOPIC.ORDER_CONSUMER, "刷取订单成功");
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
