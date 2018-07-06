@@ -52,7 +52,7 @@ hystrix:
             timeoutInMilliseconds: 10000
 logging:
   level: info
-
 feign:
   hystrix:
     enabled: false #禁用容错处理
+moduleName: order-consumer
