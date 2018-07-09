@@ -55,4 +55,4 @@ logging:
 feign:
   hystrix:
     enabled: false #禁用容错处理
-moduleName: order-consumer
+moduleName: order_consumer
