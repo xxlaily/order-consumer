@@ -8,6 +8,7 @@ import cn.dm.service.OrderService;
 import cn.dm.vo.*;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
+import org.apache.commons.lang.ArrayUtils;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.BeanUtils;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 
 @Component
@@ -62,11 +64,16 @@ public class OrderServiceImpl implements OrderService {
         for (int i = 0; i < seatArray.length; i++) {
             //查询每个坐位对应的级别
             String[] seats = seatArray[i].split("_");
+            //先把当前座位锁定
+            while (!redisUtils.lock(seatArray[i])) {
+                TimeUnit.SECONDS.sleep(3);
+            }
             dmSchedulerSeat = restDmSchedulerSeatClient.getDmSchedulerSeatByOrder(orderVo.getSchedulerId(), Integer.parseInt(seats[0]), Integer.parseInt(seats[1]));
             //如果当前作为已经被锁定待支付（状态为0）或者已被购买（状态为1），则购买选座异常失败
             if (dmSchedulerSeat.getStatus() == Constants.SchedulerSeatStatus.SchedulerSeat_TOPAY || dmSchedulerSeat.getStatus() == Constants.SchedulerSeatStatus.SchedulerSeat_PAYSUCCESS) {
                 //发送重置座位消息,具体内容为需要重置的位置
-                sendResetSeatMsg(dmSchedulerSeat.getScheduleId(), seatArray);
+                String[] seatArrayReset = (String[]) ArrayUtils.remove(seatArray, i);
+                sendResetSeatMsg(dmSchedulerSeat.getScheduleId(), seatArrayReset);
                 throw new BaseException(OrderErrorCode.ORDER_SEAT_LOCKED);
             }
             //更新作为状态为锁定待付款
