@@ -8,6 +8,7 @@ import cn.dm.service.OrderService;
 import cn.dm.vo.*;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
+import javafx.collections.ObservableMap;
 import org.apache.commons.lang.ArrayUtils;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -61,21 +62,22 @@ public class OrderServiceImpl implements OrderService {
         String orderNo = OrderUtils.createOrderNo();
         //座位价格集合
         Double[] doublesPrice = new Double[seatArray.length];
+        //先把当前座位锁定,如果已经被锁定就直接返回
+        boolean isLock = true;
+        for (int i = 0; i < seatArray.length; i++) {
+            isLock = redisUtils.lock(orderVo.getSchedulerId() + ":" + seatArray[i]);
+            if (!isLock) {
+                break;
+            }
+        }
+        if (!isLock) {
+            //座位已经被锁定，返回下订单失败
+            throw new BaseException(OrderErrorCode.ORDER_SEAT_LOCKED);
+        }
         for (int i = 0; i < seatArray.length; i++) {
             //查询每个坐位对应的级别
             String[] seats = seatArray[i].split("_");
-            //先把当前座位锁定
-            while (!redisUtils.lock(seatArray[i])) {
-                TimeUnit.SECONDS.sleep(3);
-            }
             dmSchedulerSeat = restDmSchedulerSeatClient.getDmSchedulerSeatByOrder(orderVo.getSchedulerId(), Integer.parseInt(seats[0]), Integer.parseInt(seats[1]));
-            //如果当前作为已经被锁定待支付（状态为0）或者已被购买（状态为1），则购买选座异常失败
-            if (dmSchedulerSeat.getStatus() == Constants.SchedulerSeatStatus.SchedulerSeat_TOPAY || dmSchedulerSeat.getStatus() == Constants.SchedulerSeatStatus.SchedulerSeat_PAYSUCCESS) {
-                //发送重置座位消息,具体内容为需要重置的位置
-                String[] seatArrayReset = (String[]) ArrayUtils.remove(seatArray, i);
-                sendResetSeatMsg(dmSchedulerSeat.getScheduleId(), seatArrayReset);
-                throw new BaseException(OrderErrorCode.ORDER_SEAT_LOCKED);
-            }
             //更新作为状态为锁定待付款
             dmSchedulerSeat.setStatus(Constants.SchedulerSeatStatus.SchedulerSeat_TOPAY);
             //更新下单用户
@@ -150,9 +152,22 @@ public class OrderServiceImpl implements OrderService {
             }
 
         }
+        //将座位锁定设置为永久
+        setSeatLock(orderVo, seatArray);
         JSONObject jsonObject = new JSONObject();
         jsonObject.put("orderNo", orderNo);
         return DtoUtil.returnDataSuccess(jsonObject);
+    }
+
+    /**
+     * 将座位永久锁定
+     *
+     * @param seatArray
+     */
+    private void setSeatLock(CreateOrderVo orderVo, String[] seatArray) {
+        for (int i = 0; i < seatArray.length; i++) {
+            redisUtils.expire(orderVo.getSchedulerId() + ":" + seatArray[i], -1);
+        }
     }
 
     @Override
@@ -319,12 +334,24 @@ public class OrderServiceImpl implements OrderService {
         //更新对应的订单状态为支付成功
         dmOrder.setOrderType(Constants.OrderStatus.SUCCESS);
         //更新支付类型
-        dmOrder.setPayType("1");
+        dmOrder.setPayType(dmItemMessageVo.getPayMethod() + "");
         //更新编号
-        dmOrder.setWxTradeNo("wx001");
+        if (dmItemMessageVo.getPayMethod() == Constants.PayMethod.WINXI) {
+            dmOrder.setWxTradeNo(dmItemMessageVo.getTradeNo());
+        } else {
+            dmOrder.setAliTradeNo(dmItemMessageVo.getTradeNo());
+        }
         dmOrder.setUpdatedTime(new Date());
         //更新数据库
         restDmOrderClient.qdtxModifyDmOrder(dmOrder);
+        //删除之前订单座位永久锁
+        Map<String, Object> map = new HashMap<String, Object>();
+        map.put("orderNo", dmItemMessageVo.getOrderNo());
+        List list = restDmSchedulerSeatClient.getDmSchedulerSeatListByMap(map);
+        for (int i = 0; i < list.size(); i++) {
+            DmSchedulerSeat dmSchedulerSeat = (DmSchedulerSeat) list.get(i);
+            redisUtils.delete(dmSchedulerSeat.getScheduleId() + ":" + dmSchedulerSeat.getX() + "_" + dmSchedulerSeat.getY());
+        }
         logUtils.i(Constants.TOPIC.ORDER_CONSUMER, "[updateOrderType]" + "更新订单状态队列，已更新编号为" + dmItemMessageVo.getOrderNo() + "的订单的支付状态为：" + dmItemMessageVo.getStatus() + ",支付编码为:" + dmItemMessageVo.getTradeNo());
     }
 
