@@ -344,14 +344,6 @@ public class OrderServiceImpl implements OrderService {
         dmOrder.setUpdatedTime(new Date());
         //更新数据库
         restDmOrderClient.qdtxModifyDmOrder(dmOrder);
-        //删除之前订单座位永久锁
-        Map<String, Object> map = new HashMap<String, Object>();
-        map.put("orderNo", dmItemMessageVo.getOrderNo());
-        List list = restDmSchedulerSeatClient.getDmSchedulerSeatListByMap(map);
-        for (int i = 0; i < list.size(); i++) {
-            DmSchedulerSeat dmSchedulerSeat = (DmSchedulerSeat) list.get(i);
-            redisUtils.delete(dmSchedulerSeat.getScheduleId() + ":" + dmSchedulerSeat.getX() + "_" + dmSchedulerSeat.getY());
-        }
         logUtils.i(Constants.TOPIC.ORDER_CONSUMER, "[updateOrderType]" + "更新订单状态队列，已更新编号为" + dmItemMessageVo.getOrderNo() + "的订单的支付状态为：" + dmItemMessageVo.getStatus() + ",支付编码为:" + dmItemMessageVo.getTradeNo());
     }
 
@@ -431,6 +423,8 @@ public class OrderServiceImpl implements OrderService {
                 dmSchedulerSeat.setOrderNo(null);
                 dmSchedulerSeat.setUserId(null);
                 flag = restDmSchedulerSeatClient.qdtxModifyDmSchedulerSeat(dmSchedulerSeat) > 0 ? true : false;
+                //删除之前订单座位永久锁
+                redisUtils.delete(dmSchedulerSeat.getScheduleId() + ":" + dmSchedulerSeat.getX() + "_" + dmSchedulerSeat.getY());
             }
         }
         return flag;

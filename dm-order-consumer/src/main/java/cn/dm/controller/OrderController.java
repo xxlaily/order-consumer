@@ -89,9 +89,9 @@ public class OrderController {
     public void flushCancelOrderType() {
         try {
             boolean flag = orderService.flushCancelOrderType();
-            //修改排期座位表中相应的座位的状态改为有座
-            orderService.updateSchedulerSeatStatus();
             if (flag) {
+                //修改排期座位表中相应的座位的状态改为有座
+                orderService.updateSchedulerSeatStatus();
                 logUtils.i(Constants.TOPIC.ORDER_CONSUMER, "刷取订单成功");
             }
         } catch (Exception e) {
