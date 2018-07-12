@@ -118,6 +118,7 @@ public class OrderServiceImpl implements OrderService {
         } catch (Exception e) {
             //订单创建失败，需要重置锁定的座位信息
             sendResetSeatMsg(dmSchedulerSeat.getScheduleId(), seatArray);
+            redisUtils.delete(String.valueOf(orderVo.getSchedulerId()));
             throw new BaseException(OrderErrorCode.ORDER_NO_DATA);
         }
         //添加下单关联用户
@@ -133,6 +134,7 @@ public class OrderServiceImpl implements OrderService {
                 sendDelOrderMsg(orderId);
                 //重置订单明细关联人信息
                 sendResetLinkUser(orderId);
+                redisUtils.delete(String.valueOf(orderVo.getSchedulerId()));
                 throw new BaseException(OrderErrorCode.ORDER_NO_DATA);
             }
             DmOrderLinkUser dmOrderLinkUser = new DmOrderLinkUser();
@@ -153,6 +155,7 @@ public class OrderServiceImpl implements OrderService {
                 sendDelOrderMsg(orderId);
                 //重置订单明细关联人信息
                 sendResetLinkUser(orderId);
+                redisUtils.delete(String.valueOf(orderVo.getSchedulerId()));
                 throw new BaseException(OrderErrorCode.ORDER_NO_DATA);
             }
 
