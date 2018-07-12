@@ -164,11 +164,12 @@ public class OrderServiceImpl implements OrderService {
     }
 
     /**
-     * 将座位永久锁定
+     * 将座位永久锁定,并将剧场锁定删除
      *
      * @param seatArray
      */
     private void setSeatLock(CreateOrderVo orderVo, String[] seatArray) {
+        redisUtils.delete(String.valueOf(orderVo.getSchedulerId()));
         for (int i = 0; i < seatArray.length; i++) {
             redisUtils.set(orderVo.getSchedulerId() + ":" + seatArray[i], "lock");
         }
