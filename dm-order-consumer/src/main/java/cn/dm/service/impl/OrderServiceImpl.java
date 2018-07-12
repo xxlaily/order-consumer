@@ -76,7 +76,7 @@ public class OrderServiceImpl implements OrderService {
         }
         if (isLock) {
             //座位已经被锁定，返回下订单失败
-            redisUtils.delete(String.valueOf(orderVo.getSchedulerId()));
+            redisUtils.unlock(String.valueOf(orderVo.getSchedulerId()));
             throw new BaseException(OrderErrorCode.ORDER_SEAT_LOCKED);
         }
         for (int i = 0; i < seatArray.length; i++) {
