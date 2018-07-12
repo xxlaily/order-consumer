@@ -62,15 +62,19 @@ public class OrderServiceImpl implements OrderService {
         String orderNo = OrderUtils.createOrderNo();
         //座位价格集合
         Double[] doublesPrice = new Double[seatArray.length];
-        //先把当前座位锁定,如果已经被锁定就直接返回
-        boolean isLock = true;
+        //先把当前座位对应的剧场锁定,避免同时操作
+        while (!redisUtils.lock(String.valueOf(orderVo.getSchedulerId()))) {
+            TimeUnit.SECONDS.sleep(3);
+        }
+        boolean isLock = false;
+        //查看当前座位是否已经被占用,如果被占用则直接返回
         for (int i = 0; i < seatArray.length; i++) {
-            isLock = redisUtils.lock(orderVo.getSchedulerId() + ":" + seatArray[i]);
-            if (!isLock) {
+            if (EmptyUtils.isNotEmpty(redisUtils.get(orderVo.getSchedulerId() + ":" + seatArray[i]))) {
+                isLock = true;
                 break;
             }
         }
-        if (!isLock) {
+        if (isLock) {
             //座位已经被锁定，返回下订单失败
             throw new BaseException(OrderErrorCode.ORDER_SEAT_LOCKED);
         }
@@ -166,7 +170,7 @@ public class OrderServiceImpl implements OrderService {
      */
     private void setSeatLock(CreateOrderVo orderVo, String[] seatArray) {
         for (int i = 0; i < seatArray.length; i++) {
-            redisUtils.expire(orderVo.getSchedulerId() + ":" + seatArray[i], -1);
+            redisUtils.set(orderVo.getSchedulerId() + ":" + seatArray[i], "lock");
         }
     }
 
