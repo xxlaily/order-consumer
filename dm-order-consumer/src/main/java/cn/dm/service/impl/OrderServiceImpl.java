@@ -345,7 +345,7 @@ public class OrderServiceImpl implements OrderService {
         //更新支付类型
         dmOrder.setPayType(dmItemMessageVo.getPayMethod() + "");
         //更新编号
-        if (dmItemMessageVo.getPayMethod() == Constants.PayMethod.WINXI) {
+        if (dmItemMessageVo.getPayMethod() == Constants.PayMethod.WEIXIN) {
             dmOrder.setWxTradeNo(dmItemMessageVo.getTradeNo());
         } else {
             dmOrder.setAliTradeNo(dmItemMessageVo.getTradeNo());
