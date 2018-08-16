@@ -10,6 +10,10 @@ import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import javafx.collections.ObservableMap;
 import org.apache.commons.lang.ArrayUtils;
+import org.springframework.amqp.AmqpException;
+import org.springframework.amqp.core.Message;
+import org.springframework.amqp.core.MessageDeliveryMode;
+import org.springframework.amqp.core.MessagePostProcessor;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.BeanUtils;
@@ -284,7 +288,14 @@ public class OrderServiceImpl implements OrderService {
         resetSeatMap.put("scheduleId", scheduleId);
         resetSeatMap.put("seats", seatArray);
         logUtils.i(Constants.TOPIC.ORDER_CONSUMER, "[sendResetSeatMsg]" + "发送重置座位消息，需要排期为" + scheduleId);
-        rabbitTemplate.convertAndSend(Constants.RabbitQueueName.TOPIC_EXCHANGE, Constants.RabbitQueueName.TO_RESET_SEAT_QUQUE, resetSeatMap);
+        rabbitTemplate.convertAndSend(Constants.RabbitQueueName.TOPIC_EXCHANGE, Constants.RabbitQueueName.TO_RESET_SEAT_QUQUE, resetSeatMap,new MessagePostProcessor() {
+            @Override
+            public Message postProcessMessage(Message message) throws AmqpException {
+                //设置消息持久化，避免消息服务器挂了重启之后找不到消息
+                message.getMessageProperties().setDeliveryMode(MessageDeliveryMode.PERSISTENT);
+                return message;
+            }
+        });
     }
 
     /**
@@ -292,7 +303,14 @@ public class OrderServiceImpl implements OrderService {
      */
     public void sendDelOrderMsg(Long orderId) {
         logUtils.i(Constants.TOPIC.ORDER_CONSUMER, "[sendDelOrderMsg]" + "发送重置订单消息，需要重置ID为" + orderId + "的订单");
-        rabbitTemplate.convertAndSend(Constants.RabbitQueueName.TOPIC_EXCHANGE, Constants.RabbitQueueName.TO_DEL_ORDER_QUQUE, orderId);
+        rabbitTemplate.convertAndSend(Constants.RabbitQueueName.TOPIC_EXCHANGE, Constants.RabbitQueueName.TO_DEL_ORDER_QUQUE, orderId,new MessagePostProcessor() {
+            @Override
+            public Message postProcessMessage(Message message) throws AmqpException {
+                //设置消息持久化，避免消息服务器挂了重启之后找不到消息
+                message.getMessageProperties().setDeliveryMode(MessageDeliveryMode.PERSISTENT);
+                return message;
+            }
+        });
     }
 
     /**
@@ -300,7 +318,14 @@ public class OrderServiceImpl implements OrderService {
      */
     public void sendResetLinkUser(Long orderId) {
         logUtils.i(Constants.TOPIC.ORDER_CONSUMER, "[sendResetLinkUser]" + "发送重置联系人消息，需要重置订单ID为" + orderId + "的联系人");
-        rabbitTemplate.convertAndSend(Constants.RabbitQueueName.TOPIC_EXCHANGE, Constants.RabbitQueueName.TO_RESET_LINKUSER_QUQUE, orderId);
+        rabbitTemplate.convertAndSend(Constants.RabbitQueueName.TOPIC_EXCHANGE, Constants.RabbitQueueName.TO_RESET_LINKUSER_QUQUE, orderId,new MessagePostProcessor() {
+            @Override
+            public Message postProcessMessage(Message message) throws AmqpException {
+                //设置消息持久化，避免消息服务器挂了重启之后找不到消息
+                message.getMessageProperties().setDeliveryMode(MessageDeliveryMode.PERSISTENT);
+                return message;
+            }
+        });
     }
 
     /**
