@@ -8,6 +8,7 @@ import cn.dm.service.OrderService;
 import cn.dm.vo.*;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
+import com.rabbitmq.client.Channel;
 import javafx.collections.ObservableMap;
 import org.apache.commons.lang.ArrayUtils;
 import org.springframework.amqp.AmqpException;
@@ -21,6 +22,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -118,12 +120,13 @@ public class OrderServiceImpl implements OrderService {
         dmOrder.setCreatedTime(new Date());
         Long orderId = 0L;
         try {
+            int i = 1/0;
             orderId = restDmOrderClient.qdtxAddDmOrder(dmOrder);
         } catch (Exception e) {
             //订单创建失败，需要重置锁定的座位信息
             sendResetSeatMsg(dmSchedulerSeat.getScheduleId(), seatArray);
             redisUtils.unlock(String.valueOf(orderVo.getSchedulerId()));
-            throw new BaseException(OrderErrorCode.ORDER_NO_DATA);
+//            throw new BaseException(OrderErrorCode.ORDER_NO_DATA);
         }
         //添加下单关联用户
         String[] linkIds = orderVo.getLinkIds().split(",");
@@ -361,23 +364,33 @@ public class OrderServiceImpl implements OrderService {
      * @throws Exception
      */
     @RabbitListener(queues = Constants.RabbitQueueName.TO_UPDATED_ORDER_QUEUE)
-    public void updateOrderType(DmItemMessageVo dmItemMessageVo) throws Exception {
+    public void updateOrderType(DmItemMessageVo dmItemMessageVo, Message message, Channel channel) {
         logUtils.i(Constants.TOPIC.ORDER_CONSUMER, "[updateOrderType]" + "更新订单状态队列，准备更新编号为" + dmItemMessageVo.getOrderNo() + "的订单");
-        //找到对应订单
-        DmOrder dmOrder = restDmOrderClient.getDmOrderByOrderNo(dmItemMessageVo.getOrderNo());
-        //更新对应的订单状态为支付成功
-        dmOrder.setOrderType(Constants.OrderStatus.SUCCESS);
-        //更新支付类型
-        dmOrder.setPayType(dmItemMessageVo.getPayMethod() + "");
-        //更新编号
-        if (dmItemMessageVo.getPayMethod() == Constants.PayMethod.WEIXIN) {
-            dmOrder.setWxTradeNo(dmItemMessageVo.getTradeNo());
-        } else {
-            dmOrder.setAliTradeNo(dmItemMessageVo.getTradeNo());
+        try {
+            //找到对应订单
+            DmOrder dmOrder = restDmOrderClient.getDmOrderByOrderNo(dmItemMessageVo.getOrderNo());
+            //更新对应的订单状态为支付成功
+            dmOrder.setOrderType(Constants.OrderStatus.SUCCESS);
+            //更新支付类型
+            dmOrder.setPayType(dmItemMessageVo.getPayMethod() + "");
+            //更新编号
+            if (dmItemMessageVo.getPayMethod() == Constants.PayMethod.WEIXIN) {
+                dmOrder.setWxTradeNo(dmItemMessageVo.getTradeNo());
+            } else {
+                dmOrder.setAliTradeNo(dmItemMessageVo.getTradeNo());
+            }
+            dmOrder.setUpdatedTime(new Date());
+            //更新数据库
+            restDmOrderClient.qdtxModifyDmOrder(dmOrder);
+        } catch (Exception e) {
+            e.printStackTrace();
+            try {
+                //消费者处理业务出现异常时，将消息放到死亡队列
+                channel.basicNack(message.getMessageProperties().getDeliveryTag(),false,false);
+            } catch (IOException e1) {
+                e1.printStackTrace();
+            }
         }
-        dmOrder.setUpdatedTime(new Date());
-        //更新数据库
-        restDmOrderClient.qdtxModifyDmOrder(dmOrder);
         logUtils.i(Constants.TOPIC.ORDER_CONSUMER, "[updateOrderType]" + "更新订单状态队列，已更新编号为" + dmItemMessageVo.getOrderNo() + "的订单的支付状态为：" + dmItemMessageVo.getStatus() + ",支付编码为:" + dmItemMessageVo.getTradeNo());
     }
 
@@ -388,19 +401,29 @@ public class OrderServiceImpl implements OrderService {
      * @throws Exception
      */
     @RabbitListener(queues = Constants.RabbitQueueName.TO_RESET_SEAT_QUQUE)
-    public void resetSeatMsg(Map<String, Object> resetSeatMap) throws Exception {
+    public void resetSeatMsg(Map<String, Object> resetSeatMap, Message message, Channel channel){
         Long scheduleId = (Long) resetSeatMap.get("scheduleId");
         String[] seatArray = (String[]) resetSeatMap.get("seats");
-        for (int i = 0; i < seatArray.length; i++) {
-            //查询每个坐位对应的级别
-            String[] seats = seatArray[i].split("_");
-            DmSchedulerSeat dmSchedulerSeat = restDmSchedulerSeatClient.getDmSchedulerSeatByOrder(scheduleId, Integer.parseInt(seats[0]), Integer.parseInt(seats[1]));
-            logUtils.i(Constants.TOPIC.ORDER_CONSUMER, "[resetSeatMsg]" + "重置座位状态队列，准备重置排期为：" + scheduleId + "的第 " + dmSchedulerSeat.getX() + "排,第 " + dmSchedulerSeat.getY() + "列的位置状态为空闲");
-            dmSchedulerSeat.setStatus(Constants.SchedulerSeatStatus.SchedulerSeat_FREE);
-            dmSchedulerSeat.setOrderNo(null);
-            dmSchedulerSeat.setUserId(null);
-            restDmSchedulerSeatClient.qdtxModifyDmSchedulerSeat(dmSchedulerSeat);
-            logUtils.i(Constants.TOPIC.ORDER_CONSUMER, "[resetSeatMsg]" + "重置座位状态队列，已成功重置排期为：" + scheduleId + "的第 " + dmSchedulerSeat.getX() + "排,第 " + dmSchedulerSeat.getY() + "列的位置状态为空闲");
+        try {
+            for (int i = 0; i < seatArray.length; i++) {
+                //查询每个坐位对应的级别
+                String[] seats = seatArray[i].split("_");
+                DmSchedulerSeat dmSchedulerSeat = restDmSchedulerSeatClient.getDmSchedulerSeatByOrder(scheduleId, Integer.parseInt(seats[0]), Integer.parseInt(seats[1]));
+                logUtils.i(Constants.TOPIC.ORDER_CONSUMER, "[resetSeatMsg]" + "重置座位状态队列，准备重置排期为：" + scheduleId + "的第 " + dmSchedulerSeat.getX() + "排,第 " + dmSchedulerSeat.getY() + "列的位置状态为空闲");
+                dmSchedulerSeat.setStatus(Constants.SchedulerSeatStatus.SchedulerSeat_FREE);
+                dmSchedulerSeat.setOrderNo(null);
+                dmSchedulerSeat.setUserId(null);
+                restDmSchedulerSeatClient.qdtxModifyDmSchedulerSeat(dmSchedulerSeat);
+                logUtils.i(Constants.TOPIC.ORDER_CONSUMER, "[resetSeatMsg]" + "重置座位状态队列，已成功重置排期为：" + scheduleId + "的第 " + dmSchedulerSeat.getX() + "排,第 " + dmSchedulerSeat.getY() + "列的位置状态为空闲");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            try {
+                //消费者处理业务出现异常时，将消息放到死亡队列
+                channel.basicNack(message.getMessageProperties().getDeliveryTag(),false,false);
+            } catch (IOException e1) {
+                e1.printStackTrace();
+            }
         }
     }
 
@@ -411,9 +434,19 @@ public class OrderServiceImpl implements OrderService {
      * @throws Exception
      */
     @RabbitListener(queues = Constants.RabbitQueueName.TO_DEL_ORDER_QUQUE)
-    public void delOrderMsg(Long orderId) throws Exception {
+    public void delOrderMsg(Long orderId, Message message, Channel channel){
         logUtils.i(Constants.TOPIC.ORDER_CONSUMER, "[delOrderMsg]" + "重置订单队列，准备删除编号为" + orderId + "的订单");
-        restDmOrderClient.deleteDmOrderById(orderId);
+        try {
+            restDmOrderClient.deleteDmOrderById(orderId);
+        } catch (Exception e) {
+            e.printStackTrace();
+            try {
+                //消费者处理业务出现异常时，将消息放到死亡队列
+                channel.basicNack(message.getMessageProperties().getDeliveryTag(),false,false);
+            } catch (IOException e1) {
+                e1.printStackTrace();
+            }
+        }
         logUtils.i(Constants.TOPIC.ORDER_CONSUMER, "[delOrderMsg]" + "重置订单队列，已经删除编号为" + orderId + "的订单");
     }
 
@@ -423,9 +456,19 @@ public class OrderServiceImpl implements OrderService {
      * @throws Exception
      */
     @RabbitListener(queues = Constants.RabbitQueueName.TO_RESET_LINKUSER_QUQUE)
-    public void delOrderLinkUserMsg(Long orderId) throws Exception {
+    public void delOrderLinkUserMsg(Long orderId, Message message, Channel channel){
         logUtils.i(Constants.TOPIC.ORDER_CONSUMER, "[delOrderLinkUserMsg]" + "重置订单联系人队列，准备删除编号为" + orderId + "的订单");
-        restDmOrderLinkUserClient.deleteDmOrderLinkUserByOrderId(orderId);
+        try {
+            restDmOrderLinkUserClient.deleteDmOrderLinkUserByOrderId(orderId);
+        } catch (Exception e) {
+            e.printStackTrace();
+            try {
+                //消费者处理业务出现异常时，将消息放到死亡队列
+                channel.basicNack(message.getMessageProperties().getDeliveryTag(),false,false);
+            } catch (IOException e1) {
+                e1.printStackTrace();
+            }
+        }
         logUtils.i(Constants.TOPIC.ORDER_CONSUMER, "[delOrderLinkUserMsg]" + "重置订单联系人队列，已经删除编号为" + orderId + "的订单");
     }
 
