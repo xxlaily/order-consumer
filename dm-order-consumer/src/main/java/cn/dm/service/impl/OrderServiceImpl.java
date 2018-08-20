@@ -120,13 +120,12 @@ public class OrderServiceImpl implements OrderService {
         dmOrder.setCreatedTime(new Date());
         Long orderId = 0L;
         try {
-            int i = 1/0;
             orderId = restDmOrderClient.qdtxAddDmOrder(dmOrder);
         } catch (Exception e) {
             //订单创建失败，需要重置锁定的座位信息
             sendResetSeatMsg(dmSchedulerSeat.getScheduleId(), seatArray);
             redisUtils.unlock(String.valueOf(orderVo.getSchedulerId()));
-//            throw new BaseException(OrderErrorCode.ORDER_NO_DATA);
+            throw new BaseException(OrderErrorCode.ORDER_NO_DATA);
         }
         //添加下单关联用户
         String[] linkIds = orderVo.getLinkIds().split(",");
