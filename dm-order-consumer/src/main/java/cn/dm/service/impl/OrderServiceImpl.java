@@ -156,6 +156,7 @@ public class OrderServiceImpl implements OrderService {
             try {
                 restDmOrderLinkUserClient.qdtxAddDmOrderLinkUser(dmOrderLinkUser);
             } catch (Exception e) {
+                e.printStackTrace();
                 //发送消息重置所有
                 sendResetSeatMsg(dmSchedulerSeat.getScheduleId(), seatArray);
                 sendDelOrderMsg(orderId);
