@@ -154,6 +154,7 @@ public class OrderServiceImpl implements OrderService {
             dmOrderLinkUser.setPrice(doublesPrice[i]);
             //插入数据
             try {
+                System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>getOrderId"+dmOrderLinkUser.getOrderId());
                 restDmOrderLinkUserClient.qdtxAddDmOrderLinkUser(dmOrderLinkUser);
             } catch (Exception e) {
                 e.printStackTrace();
