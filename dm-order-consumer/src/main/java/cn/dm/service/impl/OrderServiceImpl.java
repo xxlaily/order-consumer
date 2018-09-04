@@ -150,11 +150,13 @@ public class OrderServiceImpl implements OrderService {
             dmOrderLinkUser.setX(Integer.parseInt(seatArray[i].split("_")[0]));
             dmOrderLinkUser.setY(Integer.parseInt(seatArray[i].split("_")[1]));
             dmOrderLinkUser.setCreatedTime(new Date());
-            dmOrderLinkUser.setOrderId(orderId);
             dmOrderLinkUser.setPrice(doublesPrice[i]);
             //插入数据
             try {
-                System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>getOrderId"+dmOrderLinkUser.getOrderId());
+                System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>getOrderId"+orderId);
+                System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>getLinkUserId"+dmOrderLinkUser.getLinkUserId());
+                System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>getX"+dmOrderLinkUser.getX());
+                System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>getY"+dmOrderLinkUser.getY());
                 restDmOrderLinkUserClient.qdtxAddDmOrderLinkUser(dmOrderLinkUser);
             } catch (Exception e) {
                 e.printStackTrace();
